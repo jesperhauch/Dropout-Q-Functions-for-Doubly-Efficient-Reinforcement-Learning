@@ -117,7 +117,7 @@ def run():
         env = SparseRewardEnv(env, rew_thresh=args.sparsity_th)
         env._max_episode_steps = env.wrapped_env._max_episode_steps
 
-    label = args.env + "_" + str(datetime.datetime.now().isoformat())
+    label = args.env + "_" + str(datetime.datetime.now().isoformat()).split(".")[0].replace(":", "-")
     log_dir = os.path.join('runs', args.info, label)
 
     if args.distributional: # TODO remove
