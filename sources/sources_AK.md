@@ -8,6 +8,7 @@ Environment sources
 - [MuJoCo physics enviornments](https://github.com/deepmind/dm_control)
 - [RoboSchool + MuJoCo environments](https://github.com/benelot/pybullet-gym)
 - [List of different benchmarks](https://neptune.ai/blog/best-benchmarks-for-reinforcement-learning#deepmind-control)
+- [Information-Theoretic Measure for Task Complexity in Deep Reinforcement Learning](https://arxiv.org/abs/2103.12726)
 
 
 Extra implementations
