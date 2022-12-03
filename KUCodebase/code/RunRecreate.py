@@ -1,8 +1,8 @@
 import shlex, subprocess, cryptography
 
 # Recreate runs from paper
-env_name = 'HalfCheetah-v2'
-target_entropy = "-3.0"
+env_name = 'Ant-v2'
+target_entropy = "-4.0"
 
 if target_entropy:
     commands = [f"python main.py -info drq -env {env_name} -seed 0 -eval_every 1000 -frames 100000 -eval_runs 10 -gpu_id 0 -updates_per_step 20 -method sac -target_entropy {target_entropy} -target_drop_rate 0.01 -layer_norm 1",
