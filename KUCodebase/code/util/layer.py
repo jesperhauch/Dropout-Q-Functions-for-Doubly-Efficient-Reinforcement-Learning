@@ -1,46 +1,48 @@
 import torch
-from torch.autograd import Variable
-from torch import nn
+import numpy as np
+from torch.nn.modules.module import Module
+from torch.nn.parameter import Parameter
+import torch.nn.functional as F
 
-class Standout(nn.Module):
+class AdvancedDropout(Module):
     """
-    This standout class is implemented by: https://github.com/mabirck/adaptative-dropout-pytorch/blob/9c81ba607c1d9c4c9845ccaf4c7b2413d89c50c1/layers.py#L5
+    Credits to the original authors of the AdvancedDropout paper: https://github.com/PRIS-CV/AdvancedDropout/blob/main/variationalBayesDropout.py
     """
-    def __init__(self, last_layer, alpha, beta):
-        print("<<<<<<<<< THIS IS DEFINETLY A STANDOUT TRAINING >>>>>>>>>>>>>>>")
-        super(Standout, self).__init__()
-        self.pi = last_layer.weight
-        self.alpha = alpha
-        self.beta = beta
-        self.nonlinearity = nn.Sigmoid()
+    def __init__(self, num, init_mu=0, init_sigma=1.2, reduction=16):
+        '''
+        params:
+        num (int): node number
+        init_mu (float): intial mu
+        init_sigma (float): initial sigma
+        reduction (int, power of two): reduction of dimention of hidden states h
+        '''
+        super(AdvancedDropout, self).__init__()
+        if init_sigma <= 0:
+            raise ValueError("Sigma has to be larger than 0, but got init_sigma=" + str(init_sigma))
+        self.init_mu = init_mu
+        self.init_sigma = init_sigma
 
+        self.weight_h = Parameter(torch.rand([num // reduction, num]).mul(0.01))
+        self.bias_h = Parameter(torch.rand([1]).mul(0.01))
 
-    def forward(self, previous, current, p=0.5, deterministic=False):
-        # Function as in page 3 of paper: Variational Dropout
-        self.p = self.nonlinearity(self.alpha * previous.matmul(self.pi.t()) + self.beta)
-        self.mask = sample_mask(self.p)
+        self.weight_mu = Parameter(torch.rand([1, num // reduction]).mul(0.01))
+        self.bias_mu = Parameter(torch.Tensor([self.init_mu]))
+        self.weight_sigma = Parameter(torch.rand([1, num // reduction]).mul(0.01))
+        self.bias_sigma = Parameter(torch.Tensor([self.init_sigma]))
 
-        # Deterministic version as in the paper
-        if(deterministic or torch.mean(self.p).data.cpu().numpy()==0):
-            return self.p * current
+    def forward(self, input):
+        if self.training:
+            c, n = input.size()
+            # parameterized prior
+            h = F.linear(input, self.weight_h, self.bias_h)
+            mu = F.linear(h, self.weight_mu, self.bias_mu).mean()
+            sigma = F.softplus(F.linear(h, self.weight_sigma, self.bias_sigma)).mean()
+            # mask
+            epsilon = mu + sigma * torch.randn([c, n]).cuda()
+            mask = torch.sigmoid(epsilon)
+
+            out = input.mul(mask).div(torch.sigmoid(mu.data / torch.sqrt(1. + 3.14 / 8. * sigma.data ** 2.)))
         else:
-            return self.mask * current
+            out = input
 
-def sample_mask(p):
-    """Given a matrix of probabilities, this will sample a mask in PyTorch."""
-
-    if torch.cuda.is_available():
-        uniform = Variable(torch.Tensor(p.size()).uniform_(0, 1).cuda())
-    else:
-        uniform = Variable(torch.Tensor(p.size()).uniform_(0, 1))
-    mask = uniform < p
-
-    if torch.cuda.is_available():
-        mask = mask.type(torch.cuda.FloatTensor)
-    else:
-        mask = mask.type(torch.FloatTensor)
-
-    return mask
-
-if __name__ == "__main__":
-    
+        return out
