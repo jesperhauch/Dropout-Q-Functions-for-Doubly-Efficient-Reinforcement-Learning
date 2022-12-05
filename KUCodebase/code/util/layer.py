@@ -8,7 +8,7 @@ class AdvancedDropout(Module):
     """
     Credits to the original authors of the AdvancedDropout paper: https://github.com/PRIS-CV/AdvancedDropout/blob/main/variationalBayesDropout.py
     """
-    def __init__(self, num, init_mu=0, init_sigma=1.2, reduction=16):
+    def __init__(self, num, init_mu=0, init_sigma=1.2, reduction=8, device='cpu'):
         '''
         params:
         num (int): node number
@@ -29,6 +29,7 @@ class AdvancedDropout(Module):
         self.bias_mu = Parameter(torch.Tensor([self.init_mu]))
         self.weight_sigma = Parameter(torch.rand([1, num // reduction]).mul(0.01))
         self.bias_sigma = Parameter(torch.Tensor([self.init_sigma]))
+        self.device = device
 
     def forward(self, input):
         if self.training:
@@ -38,7 +39,7 @@ class AdvancedDropout(Module):
             mu = F.linear(h, self.weight_mu, self.bias_mu).mean()
             sigma = F.softplus(F.linear(h, self.weight_sigma, self.bias_sigma)).mean()
             # mask
-            epsilon = mu + sigma * torch.randn([c, n]).cuda()
+            epsilon = mu + sigma * torch.randn([c, n]).to(self.device)
             mask = torch.sigmoid(epsilon)
 
             out = input.mul(mask).div(torch.sigmoid(mu.data / torch.sqrt(1. + 3.14 / 8. * sigma.data ** 2.)))
@@ -46,3 +47,8 @@ class AdvancedDropout(Module):
             out = input
 
         return out
+
+
+
+
+        

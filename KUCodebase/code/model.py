@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from util.layer import AdvancedDropout
 from torch.distributions import Normal
 from rltorch.network import create_linear_network
 #
@@ -13,7 +14,7 @@ class BaseNetwork(nn.Module):
 
 class QNetwork(BaseNetwork):
     def __init__(self, num_inputs, num_actions, hidden_units=[256, 256],
-                 initializer='xavier', layer_norm=0, drop_rate=0.0):
+                 initializer='xavier', layer_norm=0, drop_rate=0.0, apply_advanced_dropout=0):
         super(QNetwork, self).__init__()
 
         # https://github.com/ku2482/rltorch/blob/master/rltorch/network/builder.py
@@ -21,13 +22,19 @@ class QNetwork(BaseNetwork):
             num_inputs+num_actions, 1, hidden_units=hidden_units,
             initializer=initializer)
 
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
         # override network architecture (dropout and layer normalization). TH 20210731
         new_q_networks = []
+        idx_hidden = 0
         for i, mod in enumerate(self.Q._modules.values()):
             new_q_networks.append(mod)
             if ((i % 2) == 0) and (i < (len(list(self.Q._modules.values()))) - 1):
-                if drop_rate > 0.0:
+                if drop_rate > 0.0:                    
                     new_q_networks.append(nn.Dropout(p=drop_rate))  # dropout
+                elif apply_advanced_dropout:
+                    new_q_networks.append(AdvancedDropout(num=hidden_units[idx_hidden], device=device))
+                    idx_hidden += 1
                 if layer_norm:
                     new_q_networks.append(nn.LayerNorm(mod.out_features))  # layer norm
             i += 1
@@ -40,13 +47,13 @@ class QNetwork(BaseNetwork):
 class TwinnedQNetwork(BaseNetwork):
 
     def __init__(self, num_inputs, num_actions, hidden_units=[256, 256],
-                 initializer='xavier', layer_norm=0, drop_rate=0.0):
+                 initializer='xavier', layer_norm=0, drop_rate=0.0, apply_advanced_dropout=0):
         super(TwinnedQNetwork, self).__init__()
 
         self.Q1 = QNetwork(
-            num_inputs, num_actions, hidden_units, initializer, layer_norm=layer_norm, drop_rate=drop_rate)
+            num_inputs, num_actions, hidden_units, initializer, layer_norm=layer_norm, drop_rate=drop_rate,apply_advanced_dropout=apply_advanced_dropout)
         self.Q2 = QNetwork(
-            num_inputs, num_actions, hidden_units, initializer, layer_norm=layer_norm, drop_rate=drop_rate)
+            num_inputs, num_actions, hidden_units, initializer, layer_norm=layer_norm, drop_rate=drop_rate, apply_advanced_dropout=apply_advanced_dropout)
 
     def forward(self, states, actions):
         x = torch.cat([states, actions], dim=1)
@@ -58,7 +65,7 @@ class TwinnedQNetwork(BaseNetwork):
 class RandomizedEnsembleNetwork(BaseNetwork):
 
     def __init__(self, num_inputs, num_actions, hidden_units=[256, 256],
-                 initializer='xavier', layer_norm=0, drop_rate=0.0, N=10):
+                 initializer='xavier', layer_norm=0, drop_rate=0.0, apply_advanced_dropout=0, N=10):
         super(RandomizedEnsembleNetwork, self).__init__()
 
         self.N = N
@@ -66,7 +73,7 @@ class RandomizedEnsembleNetwork(BaseNetwork):
         for i in range(N):
             setattr(self, "Q"+str(i),
                     QNetwork(num_inputs, num_actions, hidden_units, initializer,
-                             layer_norm=layer_norm, drop_rate=drop_rate))
+                             layer_norm=layer_norm, drop_rate=drop_rate, apply_advanced_dropout=apply_advanced_dropout))
 
     def forward(self, states, actions):
         x = torch.cat([states, actions], dim=1)

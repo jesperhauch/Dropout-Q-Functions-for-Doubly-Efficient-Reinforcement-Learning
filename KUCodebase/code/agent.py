@@ -23,7 +23,8 @@ class SacAgent:
                  eval_interval=1000, cuda=0, seed=0,
                  # added by TH 20210707
                  eval_runs=1, huber=0, layer_norm=0,
-                 method=None, target_entropy=None, target_drop_rate=0.0, critic_update_delay=1):
+                 method=None, target_entropy=None, target_drop_rate=0.0, 
+                 critic_update_delay=1, advanced_dropout=0):
         self.env = env
 
         torch.manual_seed(seed)
@@ -35,7 +36,7 @@ class SacAgent:
         self.method = method
         self.critic_update_delay = critic_update_delay
         self.target_drop_rate = target_drop_rate
-
+        self.apply_advanced_dropout = advanced_dropout
         self.device = torch.device("cuda:" + str(cuda) if torch.cuda.is_available() else "cpu")
 
         # policy
@@ -49,7 +50,8 @@ class SacAgent:
                     "num_actions": self.env.action_space.shape[0],
                     "hidden_units": hidden_units,
                     "layer_norm": layer_norm,
-                    "drop_rate": self.target_drop_rate}
+                    "drop_rate": self.target_drop_rate,
+                    'apply_advanced_dropout': self.apply_advanced_dropout}
         if self.method == "redq":
             self.critic = RandomizedEnsembleNetwork(**kwargs_q).to(self.device)
             self.critic_target = RandomizedEnsembleNetwork(**kwargs_q).to(self.device)
@@ -334,7 +336,7 @@ class SacAgent:
             q1, q2 = self.critic(states, sampled_action)
             if (self.method == "duvn") or (self.method == "monosac"):
                 q2 = q1 # discard q2
-            if self.target_drop_rate > 0.0:
+            if self.target_drop_rate > 0.0 or self.apply_advanced_dropout:
                 q = 0.5 * (q1 + q2)
             else:
                 q = torch.min(q1, q2)
