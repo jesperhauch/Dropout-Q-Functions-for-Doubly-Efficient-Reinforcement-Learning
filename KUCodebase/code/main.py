@@ -70,6 +70,8 @@ def run():
     parser.add_argument("-profile", type=int, default=0, choices=[0, 1],
                         help="Using profile for cpu/gpu speed and memory usage if set to 1, default=0")
 
+    # Add argument for advanced dropout
+    parser.add_argument("-advanced_dropout", type=int, default=0, choices=[0, 1], help="Whether to apply advanced dropout or not, default=0")
 
     args = parser.parse_args()
 
@@ -106,7 +108,8 @@ def run():
         'target_entropy': args.target_entropy,
         'method': args.method,
         'target_drop_rate': args.target_drop_rate,
-        'critic_update_delay': args.critic_update_delay
+        'critic_update_delay': args.critic_update_delay,
+        'advanced_dropout': args.advanced_dropout
     }
 
     env = gym.make(args.env)
