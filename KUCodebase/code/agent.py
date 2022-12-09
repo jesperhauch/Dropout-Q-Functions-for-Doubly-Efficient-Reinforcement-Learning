@@ -24,7 +24,7 @@ class SacAgent:
                  # added by TH 20210707
                  eval_runs=1, huber=0, layer_norm=0,
                  method=None, target_entropy=None, target_drop_rate=0.0, 
-                 critic_update_delay=1, advanced_dropout=0):
+                 critic_update_delay=1, advanced_dropout=0, reduction = 8):
         self.env = env
 
         torch.manual_seed(seed)
@@ -51,7 +51,8 @@ class SacAgent:
                     "hidden_units": hidden_units,
                     "layer_norm": layer_norm,
                     "drop_rate": self.target_drop_rate,
-                    'apply_advanced_dropout': self.apply_advanced_dropout}
+                    'apply_advanced_dropout': self.apply_advanced_dropout,
+                    'reduction': reduction}
         if self.method == "redq":
             self.critic = RandomizedEnsembleNetwork(**kwargs_q).to(self.device)
             self.critic_target = RandomizedEnsembleNetwork(**kwargs_q).to(self.device)
