@@ -72,6 +72,7 @@ def run():
 
     # Add argument for advanced dropout
     parser.add_argument("-advanced_dropout", type=int, default=0, choices=[0, 1], help="Whether to apply advanced dropout or not, default=0")
+    parser.add_argument("-reduction", type=int, default=8)
 
     args = parser.parse_args()
 
@@ -109,7 +110,8 @@ def run():
         'method': args.method,
         'target_drop_rate': args.target_drop_rate,
         'critic_update_delay': args.critic_update_delay,
-        'advanced_dropout': args.advanced_dropout
+        'advanced_dropout': args.advanced_dropout,
+        'reduction': args.reduction
     }
 
     env = gym.make(args.env)
